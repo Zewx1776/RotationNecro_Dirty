@@ -104,24 +104,29 @@ local spell_data = {
     golem_control = {
         spell_id = 440463,
     },
+
     evade = {
-        spell_id = 337031
+        spell_id = 337031, -- NOTE: Dont use, this is just here for the equipped spells lookup
+        default = {
+            spell_id = 337031,
+            distance = 4,
+            distance_sqr = 16,
+        },
+        metamorphosis = {
+            spell_id = 1528413,
+            distance = 6,
+            distance_sqr = 36,
+        },
     },
 
-    -- cooldown = { -- NOTE: this is some generic cooldown, tracks the latest cooldown ability, has stacks and remainaing
-    --     spell_id = 4799,
-    --     buff_id = 2209130471
-    -- },
-
     -- aspects
-    fastblood = {
-        spell_id = 588207,
-        buff_id = 844134919,
-        -- buff_ids = { 844134919, 3473291301 }
+    metamorphosis = {
+        spell_id = 1865130,
+        buff_id = 3807940699,
     },
 
     -- passives
-    in_combat_area = { -- NOTE: this is not correct, only determines if we are mounted
+    is_mounted = { -- NOTE: only determines if we are mounted
         spell_id = 1924,
         buff_id = 4294967295
     },

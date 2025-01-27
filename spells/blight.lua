@@ -5,7 +5,7 @@ local menu_elements =
 {
     tree_tab       = tree_node:new(1),
     main_boolean   = checkbox:new(true, get_hash(my_utility.plugin_label .. "blight_base_main_bool")),
-    targeting_mode = combo_box:new(1, get_hash(my_utility.plugin_label .. "blight_base_targeting_mode")),
+    targeting_mode = combo_box:new(3, get_hash(my_utility.plugin_label .. "blight_base_targeting_mode")),
     debuff_only    = checkbox:new(true, get_hash(my_utility.plugin_label .. "blight_base_debuff_only")),
     elites_only    = checkbox:new(true, get_hash(my_utility.plugin_label .. "blight_base_elites_only")),
 }
@@ -37,6 +37,8 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
+
+
     -- Check for debuff
     local debuff_only = menu_elements.debuff_only:get();
     if debuff_only then
@@ -57,10 +59,17 @@ local function logics(target)
 
     if cast_spell.target(target, spell_data.blight.spell_id, 0, false) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+
+        -- Add delay after casting if we are just debuffing with blight
+        if menu_elements.debuff_only:get() then
+            next_time_allowed_cast = current_time + my_utility.spell_delays.long_cast;
+        else
+            next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        end
 
         console.print("Cast Blight - Target: " ..
-            my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
+            my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] ..
+            ", Debuff Only: " .. tostring(debuff_only) .. ", Elites Only: " .. tostring(elites_only));
         return true;
     end;
 

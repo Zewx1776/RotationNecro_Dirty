@@ -47,7 +47,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("Necro [Dirty] v1.0.0") then
+    if not menu.menu_elements.main_tree:push("Necro [Dirty] v1.1.0") then
         return;
     end;
 
@@ -60,8 +60,6 @@ on_render_menu(function()
     end;
 
     if menu.menu_elements.settings_tree:push("Settings") then
-        -- menu.menu_elements.gather_blood_orbs:render("Gather Blood Orbs",
-        --     "       Enables the ability to gather blood orbs")
         menu.menu_elements.custom_melee_range:render("Custom Melee Range",
             "       Custom melee range for the 'Melee Target' targeting mode       ")
         menu.menu_elements.enemy_count_threshold:render("Minimum Enemy Count",
@@ -180,7 +178,6 @@ local floor_table = { true, 5.0 }   -- floor height
 local angle_table = { false, 90.0 } -- max angle
 
 -- Cache for heavy function results
-local print_time = 0.0              -- Time of next spell id print
 local next_target_update_time = 0.0 -- Time of next target evaluation
 local next_cast_time = 0.0          -- Time of next possible cast
 local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
@@ -255,11 +252,14 @@ local function evaluate_targets(target_list, melee_range)
             end
         end
 
-        -- Check if unit is an infernal horde objective
-        for _, objective_name in ipairs(my_utility.horde_objectives) do
-            if unit_name:match(objective_name) and unit_health > 1 then
-                total_score = total_score + 1000
-                break
+        -- Check if we are in an infernal horde
+        if my_utility.player_in_zone("S05_BSK_Prototype02") then
+            -- Check if unit is an infernal horde objective
+            for _, objective_name in ipairs(my_utility.horde_objectives) do
+                if unit_name:match(objective_name) and unit_health > 1 then
+                    total_score = total_score + 1000
+                    break
+                end
             end
         end
 
@@ -351,6 +351,7 @@ on_update(function()
 
     -- Out of combat blood orb gathering
     local gather_blood_orbs = spells.blood_wave.menu_elements.gather_blood_orbs:get();
+    local evade_blood_orbs = spells.blood_wave.menu_elements.evade_blood_orbs:get();
 
     if not utility.is_spell_ready(spell_data.blood_wave.spell_id) and gather_blood_orbs then -- cd is not ready but we can gather blood orbs
         local blood_orb_data = my_utility.get_blood_orb_data();
@@ -358,16 +359,14 @@ on_update(function()
             goto continue
         end
 
-        -- cast_spell.position(spell_data.evade.spell_id, blood_orb_data.closest_position, 0)
-        pathfinder.force_move_raw(blood_orb_data.closest_position) -- move to blood orb
-        pathfinder.force_move_raw(blood_orb_data.closest_position) -- move to blood orb
+        local evade_data = my_utility.get_evade_data();
 
-        -- local player_position = get_player_position()
-        -- local distance_to_player_sqr = blood_orb_data.closest_position:squared_dist_to_ignore_z(player_position)
-        -- console.print("Move to blood orb, distance to player: " ..
-        --     distance_to_player_sqr)
+        if blood_orb_data.closest_distance_sqr >= evade_data.distance_sqr and evade_blood_orbs then -- blood orb is too far, use evade to grab it
+            spells.evade.to_position(blood_orb_data.closest_position)
+        end
 
-        -- return false
+        pathfinder.force_move_raw(blood_orb_data.closest_position) -- move to blood orb
+        pathfinder.force_move_raw(blood_orb_data.closest_position) -- needed twice otherwise doesnt run
 
         ::continue::
     end
@@ -377,7 +376,12 @@ on_update(function()
     -- Only update targets if targeting_refresh_interval has expired
     if current_time >= next_target_update_time then
         local player_position = get_player_position()
-        max_targeting_range = menu.menu_elements.max_targeting_range:get()
+
+        if my_utility.player_in_zone("S05_BSK_Prototype02") then
+            max_targeting_range = 30 -- NOTE: so we see the whole infernal horde platform
+        else
+            max_targeting_range = menu.menu_elements.max_targeting_range:get()
+        end
 
         local entity_list_visible, entity_list = my_target_selector.get_target_list(
             player_position,
@@ -626,4 +630,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Necro Dirty - Version 1.0.0")
+console.print("Lua Plugin - Necro Dirty - Version 1.1.0")

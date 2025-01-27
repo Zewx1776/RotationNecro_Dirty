@@ -7,8 +7,7 @@ local menu_elements =
     main_boolean      = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_main_boolean")),
     targeting_mode    = combo_box:new(3, get_hash(my_utility.plugin_label .. "blood_wave_targeting_mode")),
     gather_blood_orbs = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_gather_blood_orbs")),
-    -- max_orb_range     = slider_int:new(12, 30, 16,
-    --     get_hash(my_utility.plugin_label .. "blood_wave_max_orb_range_armored_hide")),
+    evade_blood_orbs  = checkbox:new(false, get_hash(my_utility.plugin_label .. "blood_wave_evade_blood_orbs")),
 }
 
 local function menu()
@@ -17,19 +16,18 @@ local function menu()
 
         if menu_elements.main_boolean:get() then
             menu_elements.gather_blood_orbs:render("Gather blood orbs", "Ultimat cooldown reduction with Fastblood")
+
+            if menu_elements.gather_blood_orbs:get() then
+                menu_elements.evade_blood_orbs:render("Use evade as well", "If enabled uses evade to gather blood orbs")
+            end
+
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
-
-            -- if menu_elements.gather_blood_orbs:get() then
-            --     menu_elements.max_orb_range:render("Evaluation Range", "Max range for gathering blood orbs")
-            -- end
         end
 
         menu_elements.tree_tab:pop()
     end
 end
-
-
 
 local next_time_allowed_cast = 0.0;
 local function logics(target)
@@ -43,14 +41,16 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
+    -- move to target
+    local target_position = target:get_position()
+    pathfinder.request_move(target_position)
+
     -- Checking for target distance
     local in_range = my_utility.is_in_range(target, 4.5) -- 4.5 is the max range for blood wave
     if not in_range then
-        -- move to target
-        local target_position = target:get_position()
-        pathfinder.request_move(target_position)
         return false;
     end
+
     if cast_spell.target(target, spell_data.blood_wave.spell_id, 0, false) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;

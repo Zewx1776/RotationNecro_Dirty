@@ -101,6 +101,59 @@ local function buff_stack_count(spell_id, buff_id)
     return 0
 end
 
+local function is_position_visible(position, max_distance, max_height, check_collision)
+    -- set default values if not passed
+    max_distance = max_distance or nil
+    max_height = max_height or nil
+    check_collision = check_collision or nil
+
+    -- get player position
+    local player_position = get_player_position()
+    if not player_position then return false end
+
+    -- Check if out of range
+    if max_distance then
+        local distance_to_player_sqr = position:squared_dist_to_ignore_z(player_position);
+        local max_distance_sqr = max_distance * max_distance
+        if distance_to_player_sqr > max_distance_sqr then
+            return false
+        end
+    end
+
+    -- Check if on the same height
+    if max_height then
+        local height_difference = math.abs(player_position:z() - position:z())
+        if height_difference > max_height then
+            return false
+        end
+    end
+
+    -- check for collision
+    if check_collision then
+        -- Wall collision
+        local is_wall_collision = prediction.is_wall_collision(player_position, position, 1)
+        if is_wall_collision then
+            return false
+        end
+
+        -- Object collision
+        local blocking_object_names = { "Door", "Block" }
+        local all_objects = actors_manager.get_all_actors()
+        for _, obj in ipairs(all_objects) do
+            if not obj:is_enemy() and obj:is_interactable() then
+                local skin_name = obj:get_skin_name()
+                for _, pattern in ipairs(blocking_object_names) do
+                    if skin_name:match(pattern) and CheckActorCollision(player_position, position, obj:get_position(), 3) then
+                        return false;
+                    end
+                end
+            end
+        end
+    end
+
+    return true
+end
+
 local function get_blood_orb_data()
     local player_position = get_player_position();
     local actors = actors_manager.get_ally_actors();
@@ -113,46 +166,16 @@ local function get_blood_orb_data()
             goto continue;
         end
 
-        local object_position = object:get_position();
-        local distance_to_player_sqr = object_position:squared_dist_to_ignore_z(player_position);
-
-        -- -- Check if the blood orb is too far away
-        -- local max_orb_range = menu_elements.max_orb_range:get();
-        -- local max_orb_range = 8
-        -- local max_orb_range_sqr = max_orb_range * max_orb_range;
-        -- if distance_to_player_sqr > max_orb_range_sqr then
-        --     goto continue;
-        -- end
-
-        -- Check if the blood orb is on the same level
-        local z_difference = math.abs(player_position:z() - object_position:z())
-        local is_other_floor = z_difference > 5
-        if is_other_floor then
+        local orb_position = object:get_position();
+        local is_blood_orb_visible = is_position_visible(orb_position, 10, 5, true)
+        if not is_blood_orb_visible then
             goto continue;
         end
 
-        -- -- Check if we are blocked by a wall
-        local is_invalid = prediction.is_wall_collision(player_position, object_position, 1);
-        if is_invalid then
-            goto continue;
-        end
-
-        -- Check if we are blocked by an door
-        local blocking_object_names = { "Door", "Block" }
-        local all_objects = actors_manager.get_all_actors()
-        for _, obj in ipairs(all_objects) do
-            if not obj:is_enemy() and obj:is_interactable() then
-                local skin_name = obj:get_skin_name()
-                for _, pattern in ipairs(blocking_object_names) do
-                    if skin_name:match(pattern) and CheckActorCollision(player_position, object_position, obj:get_position(), 3) then
-                        goto continue;
-                    end
-                end
-            end
-        end
+        local distance_to_player_sqr = orb_position:squared_dist_to_ignore_z(player_position);
 
         table.insert(blood_orb_list,
-            { position = object_position, distance_sqr = distance_to_player_sqr, blood_orb = object });
+            { position = orb_position, distance_sqr = distance_to_player_sqr, blood_orb = object });
 
         ::continue::
     end
@@ -169,13 +192,42 @@ local function get_blood_orb_data()
             return {
                 is_valid = true,
                 closest_blood_orb = closest_blood_orb,
+                closest_distance_sqr = blood_orb_list[1].distance_sqr,
                 closest_position = blood_orb_list[1]
                     .position
             };
         end
     end
 
-    return { is_valid = false, closest_blood_orb = nil, closest_position = nil };
+    return { is_valid = false, closest_blood_orb = nil, closest_distance_sqr = nil, closest_position = nil };
+end
+
+local function get_evade_data()
+    -- First validate spell_data exists
+    if not spell_data or not spell_data.evade then
+        return {
+            spell_id = 337031, -- fallback to default
+            distance = 4,
+            distance_sqr = 16
+        }
+    end
+
+    -- Check for metamorphosis buff
+    if spell_data.metamorphosis and
+        is_buff_active(spell_data.metamorphosis.spell_id,
+            spell_data.metamorphosis.buff_id) then
+        return {
+            spell_id = spell_data.evade.metamorphosis.spell_id,
+            distance = spell_data.evade.metamorphosis.distance,
+            distance_sqr = spell_data.evade.metamorphosis.distance_sqr
+        }
+    end
+
+    return {
+        spell_id = spell_data.evade.default.spell_id,
+        distance = spell_data.evade.default.distance,
+        distance_sqr = spell_data.evade.default.distance_sqr
+    }
 end
 
 local function is_action_allowed()
@@ -422,16 +474,6 @@ local function enemy_count_in_range(evaluation_range, source_position)
     return all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count
 end
 
--- local function get_melee_range()
---     local melee_range = 2
-
---     -- if is_buff_active(spell_data.ravager.spell_id, spell_data.ravager.buff_ids.dash) then
---     --     melee_range = 7
---     -- end
-
---     return melee_range
--- end
-
 local function is_in_range(target, range)
     local target_position = target:get_position()
     local player_position = get_player_position()
@@ -440,10 +482,15 @@ local function is_in_range(target, range)
     return target_distance_sqr < range_sqr
 end
 
+local function player_in_zone(zname)
+    return get_current_world():get_current_zone_name() == zname
+end
+
 local spell_delays = {
     -- NOTE: if a regular cast is used, it means even instant abilities will be on cooldown for the duration of the regular cast, not optimal
     instant_cast = 0.01, -- instant cast abilites should be used as soon as possible
-    regular_cast = 0.1   -- regular abilites with animation should be used with a delay
+    regular_cast = 0.1,  -- regular abilites with animation should be used with a delay
+    long_cast = 1        -- long delay for abilities that have a long animation
 }
 
 -- skin name patterns for infernal horde objectives
@@ -456,7 +503,10 @@ local horde_objectives = {
     "BSK_Miniboss",
     "BSK_elias_boss",
     "BSK_cannibal_brute_boss",
-    "BSK_skeleton_boss"
+    "BSK_skeleton_boss",
+    "Soulspire",
+    "Mass",
+    "Zombie"
 }
 
 local evaluation_range_description = "\n      Range to check for enemies around the player      \n\n"
@@ -505,6 +555,7 @@ return
     is_debuff_active = is_debuff_active,
     buff_stack_count = buff_stack_count,
     get_blood_orb_data = get_blood_orb_data,
+    get_evade_data = get_evade_data,
 
     is_auto_play_enabled = is_auto_play_enabled,
 
@@ -515,7 +566,7 @@ return
 
     get_best_point_rec = get_best_point_rec,
     enemy_count_in_range = enemy_count_in_range,
-    -- get_melee_range = get_melee_range,
     is_in_range = is_in_range,
-    horde_objectives = horde_objectives
+    horde_objectives = horde_objectives,
+    player_in_zone = player_in_zone
 }

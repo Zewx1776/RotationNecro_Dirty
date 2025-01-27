@@ -17,6 +17,15 @@ The priority of spells can be adjusted by changing the sequence in spell_priorit
 Note: This also reorders the spells in the UI. So you can check in-game if the priority is correct. If a spell is not visible, make sure the the name is correctly spelled and in the list.
 
 ## Changelog
+### v1.1.0
+- Updated default settings
+- Better infernal horde prioritization
+- Smarter blood orb gathering
+- Added support for metamorphosis aspect (now uses the correct evade dynamically)
+- Fixed out of combat evade
+- Better blood wave movement
+- Decreased the frequency of blight casts for debuffing
+
 ### v1.0.0
 - Initial release
 
