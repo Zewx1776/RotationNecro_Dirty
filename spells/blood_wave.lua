@@ -3,11 +3,12 @@ local spell_data = require("my_utility/spell_data")
 
 local menu_elements =
 {
-    tree_tab          = tree_node:new(1),
-    main_boolean      = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_main_boolean")),
-    targeting_mode    = combo_box:new(3, get_hash(my_utility.plugin_label .. "blood_wave_targeting_mode")),
-    gather_blood_orbs = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_gather_blood_orbs")),
-    evade_blood_orbs  = checkbox:new(false, get_hash(my_utility.plugin_label .. "blood_wave_evade_blood_orbs")),
+    tree_tab            = tree_node:new(1),
+    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_main_boolean")),
+    targeting_mode      = combo_box:new(3, get_hash(my_utility.plugin_label .. "blood_wave_targeting_mode")),
+    gather_blood_orbs   = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_gather_blood_orbs")),
+    evade_blood_orbs    = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_evade_blood_orbs")),
+    reset_rathmas_vigor = checkbox:new(true, get_hash(my_utility.plugin_label .. "blood_wave_evade_blood_orbs")),
 }
 
 local function menu()
@@ -19,6 +20,8 @@ local function menu()
 
             if menu_elements.gather_blood_orbs:get() then
                 menu_elements.evade_blood_orbs:render("Use evade as well", "If enabled uses evade to gather blood orbs")
+                menu_elements.reset_rathmas_vigor:render("Reset Rathma's Vigor",
+                    "If enabled collects blood orbs even after cooldown is reset but not at 15 stacks of Rathma's Vigor for a guaranteed overpower.")
             end
 
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
@@ -41,12 +44,23 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
+    local reset_rathmas_vigor = menu_elements.reset_rathmas_vigor:get();
+    local rathmas_vigor_stacks = my_utility.buff_stack_count(spell_data.rathmas_vigor.spell_id,
+        spell_data.rathmas_vigor.stack_counter);
+
+    if reset_rathmas_vigor and rathmas_vigor_stacks < 15 then
+        local blood_orb_data = my_utility.get_blood_orb_data();
+        if blood_orb_data.is_valid then
+            return false;
+        end
+    end
+
     -- move to target
     local target_position = target:get_position()
     pathfinder.request_move(target_position)
 
     -- Checking for target distance
-    local in_range = my_utility.is_in_range(target, 4.5) -- 4.5 is the max range for blood wave
+    local in_range = my_utility.is_in_range(target, 3.5) -- 4.5 is the max range for blood wave
     if not in_range then
         return false;
     end

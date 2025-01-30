@@ -47,7 +47,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("Necro [Dirty] v1.1.0") then
+    if not menu.menu_elements.main_tree:push("Necro [Dirty] v1.1.1") then
         return;
     end;
 
@@ -181,6 +181,8 @@ local angle_table = { false, 90.0 } -- max angle
 local next_target_update_time = 0.0 -- Time of next target evaluation
 local next_cast_time = 0.0          -- Time of next possible cast
 local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
+local last_blood_orb = nil
+local last_blood_orb_time = 0
 
 -- Default enemy weights for different enemy types
 local normal_monster_value = 2
@@ -352,21 +354,36 @@ on_update(function()
     -- Out of combat blood orb gathering
     local gather_blood_orbs = spells.blood_wave.menu_elements.gather_blood_orbs:get();
     local evade_blood_orbs = spells.blood_wave.menu_elements.evade_blood_orbs:get();
+    local reset_rathmas_vigor = spells.blood_wave.menu_elements.reset_rathmas_vigor:get();
+    local rathmas_vigor_stacks = my_utility.buff_stack_count(spell_data.rathmas_vigor.spell_id,
+        spell_data.rathmas_vigor.stack_counter);
 
-    if not utility.is_spell_ready(spell_data.blood_wave.spell_id) and gather_blood_orbs then -- cd is not ready but we can gather blood orbs
+    if (not utility.is_spell_ready(spell_data.blood_wave.spell_id) and gather_blood_orbs) or
+        (reset_rathmas_vigor and rathmas_vigor_stacks < 15) then
         local blood_orb_data = my_utility.get_blood_orb_data();
         if not blood_orb_data.is_valid then
             goto continue
         end
 
+        local current_blood_orb = blood_orb_data.closest_blood_orb
+        local current_time = get_time_since_inject()
+
+        -- Check if it's the same orb and not enough time has passed
+        if current_blood_orb == last_blood_orb and (current_time - last_blood_orb_time) < 0.1 then
+            goto continue
+        end
+
         local evade_data = my_utility.get_evade_data();
 
-        if blood_orb_data.closest_distance_sqr >= evade_data.distance_sqr and evade_blood_orbs then -- blood orb is too far, use evade to grab it
+        if blood_orb_data.closest_distance_sqr >= evade_data.distance_sqr and evade_blood_orbs then
             spells.evade.to_position(blood_orb_data.closest_position)
         end
 
-        pathfinder.force_move_raw(blood_orb_data.closest_position) -- move to blood orb
-        pathfinder.force_move_raw(blood_orb_data.closest_position) -- needed twice otherwise doesnt run
+        pathfinder.force_move(blood_orb_data.closest_position)
+
+        -- Update last blood orb info after moving
+        last_blood_orb = current_blood_orb
+        last_blood_orb_time = current_time
 
         ::continue::
     end
@@ -630,4 +647,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Necro Dirty - Version 1.1.0")
+console.print("Lua Plugin - Necro Dirty - Version 1.1.1")

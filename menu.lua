@@ -15,7 +15,7 @@ local menu_elements =
 
     -- gather_blood_orbs              = checkbox:new(true,
     --     get_hash(my_utility.plugin_label .. "blood_wave_gather_blood_orbs")),
-    custom_melee_range             = slider_int:new(2, 8, 6,
+    custom_melee_range             = slider_int:new(2, 8, 8,
         get_hash(my_utility.plugin_label .. "custom_melee_range")),
     enemy_count_threshold          = slider_int:new(1, 10, 1,
         get_hash(my_utility.plugin_label .. "enemy_count_threshold")),

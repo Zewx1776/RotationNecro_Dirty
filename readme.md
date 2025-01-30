@@ -17,6 +17,11 @@ The priority of spells can be adjusted by changing the sequence in spell_priorit
 Note: This also reorders the spells in the UI. So you can check in-game if the priority is correct. If a spell is not visible, make sure the the name is correctly spelled and in the list.
 
 ## Changelog
+### v1.1.1
+- Reduced blood wave range to better hit targets
+- Added support for Rathma's Vigor stacking
+- Improved blood orb gathering logic (maybe no more stutter steps, slowdowns)
+
 ### v1.1.0
 - Updated default settings
 - Better infernal horde prioritization

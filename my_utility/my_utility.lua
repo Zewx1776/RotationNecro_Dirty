@@ -167,7 +167,7 @@ local function get_blood_orb_data()
         end
 
         local orb_position = object:get_position();
-        local is_blood_orb_visible = is_position_visible(orb_position, 10, 5, true)
+        local is_blood_orb_visible = is_position_visible(orb_position, 10, 2, true)
         if not is_blood_orb_visible then
             goto continue;
         end
