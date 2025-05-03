@@ -8,6 +8,7 @@ local menu_elements =
     targeting_mode = combo_box:new(3, get_hash(my_utility.plugin_label .. "blight_base_targeting_mode")),
     debuff_only    = checkbox:new(true, get_hash(my_utility.plugin_label .. "blight_base_debuff_only")),
     elites_only    = checkbox:new(true, get_hash(my_utility.plugin_label .. "blight_base_elites_only")),
+    avoid_blood_orbs = checkbox:new(true, get_hash(my_utility.plugin_label .. "blight_base_avoid_blood_orbs")),
 }
 
 local function menu()
@@ -19,13 +20,14 @@ local function menu()
                 my_utility.targeting_mode_description)
             menu_elements.debuff_only:render("Only cast if debuff is not active on target", "")
             menu_elements.elites_only:render("Only cast on elite or higher enemies", "")
+            menu_elements.avoid_blood_orbs:render("Don't cast when blood orbs are on the ground", "Prioritizes collecting blood orbs over casting Blight")
         end
 
         menu_elements.tree_tab:pop()
     end
 end
 
-local next_time_allowed_cast = 0.0;
+local next_time_allowed_cast = 02.0;
 
 local function logics(target)
     if not target then return false end;
@@ -37,7 +39,13 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
-
+    -- Check for blood orbs on the ground
+    if menu_elements.avoid_blood_orbs:get() then
+        local blood_orb_data = my_utility.get_blood_orb_data();
+        if blood_orb_data.is_valid then
+            return false;
+        end
+    end
 
     -- Check for debuff
     local debuff_only = menu_elements.debuff_only:get();

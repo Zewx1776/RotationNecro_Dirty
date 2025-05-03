@@ -47,7 +47,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("Necro [Dirty] v1.1.1") then
+    if not menu.menu_elements.main_tree:push("Necro [Dirty] v1.2.1") then
         return;
     end;
 
@@ -647,4 +647,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Necro Dirty - Version 1.1.1")
+console.print("Lua Plugin - Necro Dirty - Version 1.2.1")

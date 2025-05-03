@@ -9,6 +9,7 @@ local menu_elements =
     -- enemy_count_threshold = slider_int:new(0, 30, 1,
     --     get_hash(my_utility.plugin_label .. "corpse_explosion_base_enemy_count_threshold")),
     flesh_eater_only = checkbox:new(true, get_hash(my_utility.plugin_label .. "corpse_explosion_base_flesh_eater_only")),
+    avoid_blood_orbs = checkbox:new(true, get_hash(my_utility.plugin_label .. "corpse_explosion_base_avoid_blood_orbs")),
     -- evaluation_range      = slider_int:new(1, 16, 12,
     --     get_hash(my_utility.plugin_label .. "corpse_explosion_base_evaluation_range")),
 }
@@ -19,6 +20,7 @@ local function menu()
 
         if menu_elements.main_boolean:get() then
             menu_elements.flesh_eater_only:render("Only recast if Flesh Eater is not active", "")
+            menu_elements.avoid_blood_orbs:render("Don't cast when blood orbs are on the ground", "Prioritizes collecting blood orbs over casting Corpse Explosion")
             -- menu_elements.evaluation_range:render("Evaluation Range", my_utility.evaluation_range_description)
             -- menu_elements.filter_mode:render("Filter Modes", my_utility.activation_filters, "")
             -- menu_elements.enemy_count_threshold:render("Minimum Enemy Count",
@@ -29,7 +31,7 @@ local function menu()
     end
 end
 
-local next_time_allowed_cast = 0.0;
+local next_time_allowed_cast = 2.0;
 
 local function get_corpse_explosion_data()
     -- Hit Calculation: We now calculate the number of enemies each corpse can hit using utility.get_amount_of_units_inside_circle(center, radius).
@@ -85,6 +87,14 @@ local function logics()
         spell_data.corpse_explosion.spell_id);
 
     if not is_logic_allowed then return false end;
+
+    -- Check for blood orbs on the ground
+    if menu_elements.avoid_blood_orbs:get() then
+        local blood_orb_data = my_utility.get_blood_orb_data();
+        if blood_orb_data.is_valid then
+            return false;
+        end
+    end
 
     -- Checking for Flesh Eater
     local flesh_eater_only = menu_elements.flesh_eater_only:get();

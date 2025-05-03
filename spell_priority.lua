@@ -9,7 +9,7 @@ local spell_priority = {
     "evade",
     "blight",
 
-    -- "corpse_tendrils",
+    "corpse_tendrils",
     -- "bone_spear",
     -- "bone_splinters",
     -- "decrepify",

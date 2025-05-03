@@ -2,7 +2,7 @@ local my_utility = require("my_utility/my_utility")
 
 local menu_elements_corpse_base = {
     tree_tab_tendrils               = tree_node:new(1),
-    main_boolean_tendrils           = checkbox:new(true, get_hash(my_utility.plugin_label .. "tendrils_boolean_base")),
+    main_boolean           = checkbox:new(true, get_hash(my_utility.plugin_label .. "tendrils_boolean_base")),
     min_hits                        = slider_int:new(0, 30, 5, get_hash(my_utility.plugin_label .. "tendrils_min_hits_base")),
     effect_size_affix_mult      = slider_float:new(0.0, 200.0, 0.0, get_hash(my_utility.plugin_label .. "tendrils__effect_size_affix_mult_slider_base")),
 }
@@ -10,9 +10,9 @@ local menu_elements_corpse_base = {
 local function menu()
     
     if menu_elements_corpse_base.tree_tab_tendrils:push("Corpse Tendrils") then
-        menu_elements_corpse_base.main_boolean_tendrils:render("Enable Spell", "")
+        menu_elements_corpse_base.main_boolean:render("Enable Spell", "")
 
-        if menu_elements_corpse_base.main_boolean_tendrils:get() then
+        if menu_elements_corpse_base.main_boolean:get() then
             menu_elements_corpse_base.min_hits:render("Min Hits", "")
             menu_elements_corpse_base.effect_size_affix_mult:render("Effect Size Affix Mult", "", 1)
         end;
@@ -77,7 +77,7 @@ end
 
 local function logics()
 
-    local menu_boolean = menu_elements_corpse_base.main_boolean_tendrils:get();
+    local menu_boolean = menu_elements_corpse_base.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
                 menu_boolean, 
                 next_time_allowed_cast, 
@@ -124,4 +124,5 @@ return
 {
     menu = menu,
     logics = logics,
+    menu_elements = menu_elements_corpse_base,
 }
