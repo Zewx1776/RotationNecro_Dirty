@@ -38,26 +38,36 @@ end
 
 local next_time_allowed_cast = 0.0;
 local function logics(target)
+    console.print("[DEBUG] Blood Wave: logics function called")
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
         next_time_allowed_cast,
         spell_data.blood_wave.spell_id);
-    if not is_logic_allowed then return false end;
+    console.print("[DEBUG] Blood Wave: is_logic_allowed = " .. tostring(is_logic_allowed));
+    if not is_logic_allowed then 
+        console.print("[DEBUG] Blood Wave: Logic not allowed, returning false")
+        return false 
+    end;
 
     local reset_rathmas_vigor = menu_elements.reset_rathmas_vigor:get();
     local rathmas_vigor_stacks = my_utility.buff_stack_count(spell_data.rathmas_vigor.spell_id,
         spell_data.rathmas_vigor.stack_counter);
+    console.print("[DEBUG] Blood Wave: reset_rathmas_vigor = " .. tostring(reset_rathmas_vigor) .. ", rathmas_vigor_stacks = " .. tostring(rathmas_vigor_stacks))
     if reset_rathmas_vigor and rathmas_vigor_stacks < 15 then
         local blood_orb_data = my_utility.get_blood_orb_data();
+        console.print("[DEBUG] Blood Wave: blood_orb_data.is_valid = " .. tostring(blood_orb_data.is_valid))
         if blood_orb_data.is_valid then
+            console.print("[DEBUG] Blood Wave: Valid blood orb data, returning false")
             return false;
         end
     end
 
     -- Enhanced logic: Use min hits targeting if enabled
     local use_min_hits = menu_elements.min_hits:get() and menu_elements.min_hits:get() > 0
+    console.print("[DEBUG] Blood Wave: use_min_hits = " .. tostring(use_min_hits) .. ", min_hits value = " .. tostring(menu_elements.min_hits:get()))
     if use_min_hits then
+        console.print("[DEBUG] Blood Wave: Using min_hits targeting")
         local menu_module = nil
         local menu_settings = nil
         local success, result = pcall(require, 'menu')
@@ -67,14 +77,42 @@ local function logics(target)
         local raw_radius = 7.0
         local multiplier = menu_elements.effect_size_affix_mult:get() / 100
         local wave_radius = raw_radius * (1.0 + multiplier)
+        console.print("[DEBUG] Blood Wave: wave_radius = " .. tostring(wave_radius))
         local player_position = get_player_position()
-        local area_data = target_selector.get_most_hits_target_circular_area_heavy(player_position, 8.0, wave_radius)
-        local best_target = area_data.main_target
-        if not best_target then
+        console.print("[DEBUG] Blood Wave: player_position = " .. tostring(player_position.x) .. ", " .. tostring(player_position.y) .. ", " .. tostring(player_position.z))
+        -- Add error handling around the target selection
+        local area_data = nil
+        local status, err = pcall(function()
+            console.print("[DEBUG] Blood Wave: About to call get_most_hits_target_circular_area_heavy")
+            area_data = target_selector.get_most_hits_target_circular_area_heavy(player_position, 8.0, wave_radius)
+            console.print("[DEBUG] Blood Wave: Successfully called get_most_hits_target_circular_area_heavy")
+        end)
+        
+        if not status then
+            console.print("[DEBUG] Blood Wave: ERROR in target selection: " .. tostring(err))
             return false
         end
+        
+        if not area_data then
+            console.print("[DEBUG] Blood Wave: area_data is nil")
+            return false
+        end
+        
+        console.print("[DEBUG] Blood Wave: Got area_data")
+        local best_target = area_data.main_target
+        if not best_target then
+            console.print("[DEBUG] Blood Wave: No best target found in area targeting")
+            return false
+        end
+        console.print("[DEBUG] Blood Wave: Found best target")
         local best_target_position = best_target:get_position()
-        -- Wall/line-of-sight check: do not target through walls
+        console.print("[DEBUG] Blood Wave: best_target_position = " .. tostring(best_target_position.x) .. ", " .. tostring(best_target_position.y) .. ", " .. tostring(best_target_position.z))
+        
+        -- Check if target is a boss
+        local is_boss_target = best_target:is_boss()
+        console.print("[DEBUG] Blood Wave: is_boss_target = " .. tostring(is_boss_target))
+        
+        -- Wall/line-of-sight check: do not target through walls (unless it's a boss)
         local is_wall_collision = false
         if prediction and prediction.is_wall_collision then
             local player_position = get_player_position()
@@ -83,11 +121,18 @@ local function logics(target)
             local player_position = get_player_position()
             is_wall_collision = my_utility.is_wall_collision(player_position, best_target_position, 1)
         end
-        if is_wall_collision then
+        console.print("[DEBUG] Blood Wave: is_wall_collision = " .. tostring(is_wall_collision))
+        
+        -- Skip wall collision check for boss targets
+        if is_wall_collision and not is_boss_target then
+            console.print("[DEBUG] Blood Wave: Wall collision detected (not a boss), returning false")
             return false
+        elseif is_wall_collision and is_boss_target then
+            console.print("[DEBUG] Blood Wave: Wall collision detected but target is a boss, proceeding anyway")
         end
         local best_cast_data = my_utility.get_best_point(best_target_position, wave_radius, area_data.victim_list)
         local victim_list = best_cast_data.victim_list or {}
+        console.print("[DEBUG] Blood Wave: Number of victims found = " .. tostring(#victim_list))
 
         -- Get custom enemy weights from menu (fallback to defaults if not set)
         local normal_weight = 2
@@ -106,21 +151,34 @@ local function logics(target)
         for _, unit in ipairs(victim_list) do
             if unit:is_boss() then
                 total_weight = total_weight + boss_weight
+                console.print("[DEBUG] Blood Wave: Found boss, weight +" .. tostring(boss_weight))
             elseif unit:is_champion() then
                 total_weight = total_weight + champion_weight
+                console.print("[DEBUG] Blood Wave: Found champion, weight +" .. tostring(champion_weight))
             elseif unit:is_elite() then
                 total_weight = total_weight + elite_weight
+                console.print("[DEBUG] Blood Wave: Found elite, weight +" .. tostring(elite_weight))
             else
                 total_weight = total_weight + normal_weight
+                console.print("[DEBUG] Blood Wave: Found normal, weight +" .. tostring(normal_weight))
             end
         end
+        console.print("[DEBUG] Blood Wave: total_weight = " .. tostring(total_weight) .. ", min_hits required = " .. tostring(menu_elements.min_hits:get()))
 
         if total_weight < menu_elements.min_hits:get() then
+            console.print("[DEBUG] Blood Wave: total_weight < min_hits, returning false")
             return false
         end
+        console.print("[DEBUG] Blood Wave: Weight check passed, proceeding with cast")
         pathfinder.request_move(best_target_position)
-        local in_range = my_utility.is_in_range(best_target, 3.5)
+        
+        -- Use 4.5 range for boss targets, otherwise use 3.5
+        local range_to_use = is_boss_target and 6.5 or 3.5
+        local in_range = my_utility.is_in_range(best_target, range_to_use)
+        console.print("[DEBUG] Blood Wave: in_range (min_hits path) = " .. tostring(in_range) .. " (using range " .. range_to_use .. ")")
+        
         if not in_range then
+            console.print("[DEBUG] Blood Wave: Not in range (min_hits path), returning false")
             return false
         end
         if cast_spell.target(best_target, spell_data.blood_wave.spell_id, 0, false) then
@@ -133,20 +191,49 @@ local function logics(target)
     end
 
     -- Fallback to original logic if min hits is not enabled
-    if not target then return false end;
-    local target_position = target:get_position()
-    pathfinder.request_move(target_position)
-    local in_range = my_utility.is_in_range(target, 3.5)
+    if not target then 
+        console.print("[DEBUG] Blood Wave: Target is nil, returning false")
+        return false 
+    end;
+    
+    local status, err = pcall(function()
+        console.print("[DEBUG] Blood Wave: Using standard targeting logic")
+        local target_position = target:get_position()
+        console.print("[DEBUG] Blood Wave: Target position = " .. tostring(target_position.x) .. ", " .. tostring(target_position.y) .. ", " .. tostring(target_position.z))
+        pathfinder.request_move(target_position)
+    end)
+    
+    if not status then
+        console.print("[DEBUG] Blood Wave: ERROR in standard targeting: " .. tostring(err))
+        return false
+    end
+    
+    -- Check if target is a boss
+    local is_boss_target = target:is_boss()
+    console.print("[DEBUG] Blood Wave: Standard path is_boss_target = " .. tostring(is_boss_target))
+    
+    -- Use different range based on target type
+    local range_to_use = is_boss_target and 4.5 or 9.5
+    local in_range = my_utility.is_in_range(target, range_to_use)
+    console.print("[DEBUG] Blood Wave: in_range = " .. tostring(in_range) .. " (using range " .. range_to_use .. ")")
+    
     if not in_range then
+        console.print("[DEBUG] Blood Wave: Not in range, returning false")
         return false;
     end
-    if cast_spell.target(target, spell_data.blood_wave.spell_id, 0, false) then
+    console.print("[DEBUG] Blood Wave: In range, attempting to cast")
+    local cast_result = cast_spell.target(target, spell_data.blood_wave.spell_id, 0, false)
+    console.print("[DEBUG] Blood Wave: cast_result = " .. tostring(cast_result))
+    if cast_result then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
         console.print("Cast Blood Wave - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
         return true;
+    else
+        console.print("[DEBUG] Blood Wave: Cast failed")
     end;
+    console.print("[DEBUG] Blood Wave: Reached end of function, returning false")
     return false;
 end
 

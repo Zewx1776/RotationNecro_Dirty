@@ -4,8 +4,8 @@
 
 local spell_priority = {
     "blood_mist",
-    "corpse_explosion",
     "blood_wave",
+    "corpse_explosion",
     "evade",
     "blight",
 
